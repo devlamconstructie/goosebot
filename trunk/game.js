@@ -1,5 +1,75 @@
 const main = document.querySelector('main')
 
+class goose{
+    constructor(color){
+        this.color = color;
+        this.place = 0;
+        this.flag = '';
+        this.turns = 0;
+    }
+
+    static stragglers
+
+
+    start_turn(){
+        this.turns++;
+        switch (this.flag) {
+            case 'skip':
+                this.flag = '';
+                break;
+            case 'stuck':
+                //record other players
+                break;
+            default:
+                this.do_turn();
+                break;
+        }
+
+    }
+
+    do_turn(){
+        let steps = this.roll();
+        this.move(steps) ;
+        this.end_turn()
+    }
+
+    end_turn(){
+        //if place is special do special action and set flags
+
+        
+    }
+
+    roll(){
+        return Math.round(6 * Math.random()) 
+    }
+
+    move(steps){
+        this.place = this.place + steps;
+    }
+
+    lookback(){
+        //loop through other geese
+        //if one or more geese has place < this.place return geese.colors array.
+    }
+    
+    is_overtaken(){
+        //    
+    }
+   
+
+}
+
+class game {
+    static geese = [];
+    constructor(players){
+        this.colors = ['blue', 'red', 'yellow', 'green', 'white', 'black'];
+        for (let i = 0; i < players;  i++) {
+                geese.push(new goose(this.colors[i]))
+        }
+    }
+    
+}
+
 
 
 /*
@@ -12,7 +82,7 @@ make game
 
 has board,
 has methods
-throwdie
+roll
 movetoplace
 repeatsteps
 throwagain
