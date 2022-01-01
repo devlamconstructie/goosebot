@@ -1,15 +1,47 @@
+// Warn if overriding existing method
+if(Array.prototype.equals)
+    console.warn("Overriding existing Array.prototype.equals. Possible causes: New API defines the method, there's a framework conflict or you've got double inclusions in your code.");
+// attach the .equals method to Array's prototype to call it on any array
+Array.prototype.equals = function (array) {
+    // if the other array is a falsy value, return
+    if (!array)
+        return false;
+
+    // compare lengths - can save a lot of time 
+    if (this.length != array.length)
+        return false;
+
+    for (var i = 0, l=this.length; i < l; i++) {
+        // Check if we have nested arrays
+        if (this[i] instanceof Array && array[i] instanceof Array) {
+            // recurse into the nested arrays
+            if (!this[i].equals(array[i]))
+                return false;       
+        }           
+        else if (this[i] != array[i]) { 
+            // Warning - two different object instances will never be equal: {x:20} != {x:20}
+            return false;   
+        }           
+    }       
+    return true;
+}
+// Hide method from for-in loops
+Object.defineProperty(Array.prototype, "equals", {enumerable: false});
+
+
 const main = document.querySelector('main')
 
 class goose{
-    constructor(color){
+    constructor(color, session){
         this.color = color;
-        this.place = 0;
-        this.flag = '';
-        this.turns = 0;
+        this.session = session;
+
     }
 
-    static stragglers
-
+    static stragglers =[]
+    static place = 0;
+    static flag = '';
+    static turns = 0;
 
     start_turn(){
         this.turns++;
@@ -18,7 +50,12 @@ class goose{
                 this.flag = '';
                 break;
             case 'stuck':
-                //record other players
+                if( ! this.isLast()){
+                    // 
+                } else {
+                    //same as skip
+                    this.flag = '';
+                }
                 break;
             default:
                 this.do_turn();
@@ -28,15 +65,47 @@ class goose{
     }
 
     do_turn(){
-        let steps = this.roll();
-        this.move(steps) ;
+        this.turnRoll = this.roll();
+        this.move(this.turnRoll) ;
         this.end_turn()
     }
 
     end_turn(){
-        //if place is special do special action and set flags
-
+        //if place is not special gtfo
+        if (! this.session.board[this.place])
+            return;
         
+        //if place is special get action
+        switch(this.session.board[this.place]){
+            case 'repeat':
+                this.move(this.turnRoll)
+                break;
+            case 'skip':       
+                this.flag = 'skip'
+                break;
+            case 'roll': 
+                this.do_turn();
+                break;
+            case 'stuck':
+                this.flag = 'stuck'
+                this.isLast() ;
+                break;
+            case 'goto37':
+                this.goToPlace(37) 
+                break;
+            case 'goto12'    :
+                this.goToPlace(12) 
+                break;    
+            case 'goto0':
+                this.goToPlace(0); 
+                break;
+            case 'win':
+                this.win();  
+                break;                                     
+            default:
+                console.log(this.session.board[this.place])
+        } 
+
     }
 
     roll(){
@@ -45,30 +114,132 @@ class goose{
 
     move(steps){
         this.place = this.place + steps;
+        if (this.place > 63){
+            //overshot 63; 
+            this.turnRoll = -this.turnRoll; //turnroll is negative
+            this.place = 126 - this.place 
+        }
+        this.end_turn();
+        //update view
     }
 
-    lookback(){
+    goToPlace(p){
+        this.place = p;
+    }
+
+    isLast(){
         //loop through other geese
-        //if one or more geese has place < this.place return geese.colors array.
+        this.session.geese.forEach(bird => {
+            if (bird.place < this.place){
+                stragglers.push(bird);
+            };
+            if(stragglers.length == 0 ){
+                this.flag = 'skip'
+                return true;
+            }
+            return false;    
+        })
     }
     
-    is_overtaken(){
-        //    
+    isOvertaken(){
+        //remember kids: array names are references so if 
+        // we want to actually retain a version of the array 
+        // we need to create a new reference. 
+        let lastTurnStragglers = this.stragglers.slice();
+        let last = this.isLast();
+        if(last){
+            this.flag = '';
+            return true;
+        }
+        lastTurnStragglers = lastTurnStragglers.sort();
+        let samestragglers = lastTurnStragglers.equals(this.stragglers.sort());
+        if(!samestragglers)
+            return true;
+
+        return false;    
     }
    
+    win(){
+        this.flag = 'win';
+    }
 
 }
 
 class game {
-    static geese = [];
-    constructor(players){
+
+    constructor(players, dice){
+        this.geese = [];
+        this.winner = null;
         this.colors = ['blue', 'red', 'yellow', 'green', 'white', 'black'];
+        this.board = setup_board();
+        this.dice = dice || 1;
         for (let i = 0; i < players;  i++) {
-                geese.push(new goose(this.colors[i]))
+                geese.push(new goose(this.colors[i], this))
         }
+
     }
     
+    play(){
+        while (!this.winner) {
+            geese.forEach(goose => {
+                goose.start_turn();
+                if (goose.flag == 'win') {
+                    this.winner = goose.color;
+                }            
+            });
+        }
+    }
+
+    setup_board(){
+        const board = [];
+        for(i=0; i<=63; i++){
+            if (i % 9 == 0 || ( i+4 ) % 9 == 0 ){
+                board.places.push('repeat')
+                continue;
+            }
+            switch(i){
+                case 6: 
+                    board.places.push('goto12')
+                    break;
+                case 19: 
+                    board.places.push('skip')
+                    break; 
+                case 26:
+                case 53:    
+                    board.places.push('roll') 
+                    break;              
+                case 31:
+                case 52: 
+                    board.places.push('stuck')
+                    break;
+                case 42:
+                    board.places.push('goto37') 
+                    break;     
+                case 58:
+                    board.places.push('goto0')    
+                    break;
+                case 63:
+                    board.places.push('win')  
+                    break;    
+                default:
+                    board.places.push('')
+                    break;
+            }
+        }
+        return board;
+    }
+
 }
+//data
+const board = {
+
+}
+
+
+const pointless_game_of_goose = new game(4);
+const winner = pointless_game_of_goose.play();
+
+
 
 
 
