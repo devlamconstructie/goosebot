@@ -39,11 +39,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     })
 })
 
-function showGame(obj){
-
-}
-
-
 function gg(geese){
     const g = new game(geese)
     g.play();
@@ -60,22 +55,30 @@ class goose{
     }
 
     start_turn(turn){
+        
+        if(this.session.winner != null )
+            return;
+
         this.turns = turn;
+        
         if (this.hasFlag()) {
             console.log(`Turn ${this.turns}: ${this.color} begins turn on place ${this.place} and with flag '${this.flag}'`)
         } else {
             console.log(`Turn ${this.turns}: ${this.color} begins turn on place ${this.place}`)
         }
        
+        flagswitch:
         switch (this.flag) {
             case 'skip':
                 this.flag = '';
                 break;
-            case 'stuck':
-                if( ! this.isLast()){
-                    // 
-                } else {
-                    //same as skip
+            case 'stuck':       
+                if( this.isOvertaken() ){
+                    this.flag = '';
+                    this.doTurn();
+                    break flagswitch;
+                }
+                if ( this.isLast() ){
                     this.flag = '';
                 }
                 break;
@@ -89,6 +92,10 @@ class goose{
         return this.flag != '' ; 
     }
 
+    extraTurn(){
+        this.doTurn();
+    }
+
     doTurn(){
         this.turnRoll = this.roll();
         console.log(`${this.color} rolls a ${this.turnRoll}`)
@@ -98,10 +105,10 @@ class goose{
 
     endTurn(){
         if (this.hasFlag()) {
-            this.session.view.logEvents(this.color, `Turn ${this.turns}: ${this.color} ends turn on place ${this.place} and ${this.session.board[this.place].d}`);
+            this.session.view.logEvents(this.color, `${this.color} threw a ${this.turnRoll} and ends turn on place ${this.place} and ${this.session.board[this.place].d}`);
             console.log(`Turn ${this.turns}: ${this.color} ends turn on place ${this.place} and ${this.session.board[this.place].d}`)
         } else {
-            this.session.view.logEvents(this.color, `Turn ${this.turns}: ${this.color} ends turn on place ${this.place}`);
+            this.session.view.logEvents(this.color,  `${this.color} threw a ${this.turnRoll} and ends turn on place ${this.place}`);
             console.log(`Turn ${this.turns}: ${this.color} ends turn on place ${this.place}`)
         }
 
@@ -122,6 +129,7 @@ class goose{
     }
 
     repeatSteps(){
+        this.session.view.logEvents(this.color, `${this.color} landed on a goose on place ${this.place} and gets to move ${this.turnRoll} steps further.`);
         this.move(this.turnRoll);
     }
 
@@ -153,13 +161,18 @@ class goose{
             if (bird.place < this.place){
                 this.stragglers.push(bird);
             };
-            if(this.stragglers.length == 0 ){
-                this.flag = 'skip'
-                return true;
-            }
-            console.log(`${this.color} has ${this.stragglers.length} stragglers behind it`);
-            return false;    
         })
+        if(this.stragglers.length == 0 ){
+            this.session.view.logEvents(this.color, `${this.color} is lucky; there are no stragglers so they only have to skip a turn.`);
+            this.flag = 'skip'
+            return true;
+        }
+        let eventmsg = `${this.color} is stuck and has ${this.stragglers.length} stragglers behind it:`;
+        this.stragglers.forEach(fowl => eventmsg += fowl.color)
+        this.session.view.logEvents(this.color, eventmsg );
+        console.log(`${this.color} has ${this.stragglers.length} stragglers behind it`);
+        return false;    
+
     }
     
     isOvertaken(){
@@ -174,14 +187,16 @@ class goose{
         }
         lastTurnStragglers = lastTurnStragglers.sort();
         let samestragglers = lastTurnStragglers.equals(this.stragglers.sort());
-        if(!samestragglers)
+        if(!samestragglers){
+            this.session.view.logEvents(this.color, `${this.color} was rescued by a passerby and can now move again.`);
             return true;
-
+        }
         return false;    
     }
    
     win(){
         this.flag = 'win';
+        this.session.winner = this.color;
     }
 
     checkIsSpecial(p){
@@ -220,19 +235,21 @@ class game {
     }
     
     play(){
-        while (!this.winner) {
+         while (!this.winner) {
             ++this.turn;
             this.geese.forEach(g => {
                 g.start_turn(this.turn);
                 if (g.flag == 'win') {
                     this.winner = g.color;
+                    this.view.logEvents(this.winner, `the winner is ${this.winner}`);
+                   
                 }            
             });
             if(this.turn > 100){
                 break;
             }
         }
-        this.view.logEvents(this.winner, `the winner is ${this.winner}`);
+        
     }
 
     setup_board(){
@@ -247,11 +264,11 @@ class game {
                     board.push({a:'bridge', f: 'goToPlace', p: 12, d: 'hops on the bridge'})
                     break;
                 case 19: 
-                    board.push({a:'inn', f: 'skipTurn', p: null, d: 'is way too comfy in the tavern'})
+                    board.push({a:'inn', f: 'skipTurn', p: null, d: 'is way too comfy in the tavern and skips a turn'})
                     break; 
                 case 26:
                 case 53:    
-                    board.push({a:'dice', f: 'doTurn', p: null, d: 'gets to roll again'}) 
+                    board.push({a:'dice', f: 'extraTurn', p: null, d: 'gets to roll again'}) 
                     break;              
                 case 31:
                     board.push({a:'well', f: 'getStuck', p: null, d: 'falls into the Well'})
