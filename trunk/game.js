@@ -35,16 +35,17 @@ class goose{
     constructor(color, session){
         this.color = color;
         this.session = session;
-
+        this.stragglers =[]
+        this.place = 0;
+        this.flag = '';
+        this.turns = 0;
     }
 
-    static stragglers =[]
-    static place = 0;
-    static flag = '';
-    static turns = 0;
+ 
 
-    start_turn(){
-        this.turns++;
+    start_turn(turn){
+        this.turns = turn;
+        console.log(`Turn ${this.turns}: ${this.color} is on place ${this.place} and has flag '${this.flag}'`)
         switch (this.flag) {
             case 'skip':
                 this.flag = '';
@@ -66,50 +67,25 @@ class goose{
 
     do_turn(){
         this.turnRoll = this.roll();
+        console.log(`${this.color} rolls a ${this.turnRoll}`)
         this.move(this.turnRoll) ;
-        this.end_turn()
+        //this.end_turn()
     }
 
     end_turn(){
         //if place is not special gtfo
-        if (! this.session.board[this.place])
-            return;
-        
+
+           
+       // console.log(`${this.color} moved to place ${this.place} with special property ${this.session.board[this.place]}`)
+            
         //if place is special get action
-        switch(this.session.board[this.place]){
-            case 'repeat':
-                this.move(this.turnRoll)
-                break;
-            case 'skip':       
-                this.flag = 'skip'
-                break;
-            case 'roll': 
-                this.do_turn();
-                break;
-            case 'stuck':
-                this.flag = 'stuck'
-                this.isLast() ;
-                break;
-            case 'goto37':
-                this.goToPlace(37) 
-                break;
-            case 'goto12'    :
-                this.goToPlace(12) 
-                break;    
-            case 'goto0':
-                this.goToPlace(0); 
-                break;
-            case 'win':
-                this.win();  
-                break;                                     
-            default:
-                console.log(this.session.board[this.place])
-        } 
+
+        console.log(`${this.color} moved to place ${this.place} and ${this.session.board[this.place].d}`) 
 
     }
 
     roll(){
-        return Math.round(6 * Math.random()) 
+       return Math.round(Math.random() * 5) + 1;
     }
 
     move(steps){
@@ -119,24 +95,30 @@ class goose{
             this.turnRoll = -this.turnRoll; //turnroll is negative
             this.place = 126 - this.place 
         }
-        this.end_turn();
-        //update view
+        console.log(`${this.color} moves to ${this.place}`)
+        let special = this.checkIsSpecial(this.session.board[this.place]);
+        if (!special)
+            this.end_turn()
     }
 
     goToPlace(p){
         this.place = p;
+        let special = this.checkIsSpecial(this.session.board[this.place]);
+        if (!special)
+            this.end_turn();
     }
 
     isLast(){
         //loop through other geese
         this.session.geese.forEach(bird => {
             if (bird.place < this.place){
-                stragglers.push(bird);
+                this.stragglers.push(bird);
             };
-            if(stragglers.length == 0 ){
+            if(this.stragglers.length == 0 ){
                 this.flag = 'skip'
                 return true;
             }
+            console.log(`${this.color} has ${this.stragglers.length} stragglers behind it`);
             return false;    
         })
     }
@@ -163,69 +145,115 @@ class goose{
         this.flag = 'win';
     }
 
+    checkIsSpecial(field){
+        if (field.a == ''){
+            console.log(`${this.color} moved to place ${this.place}`)
+            return false;
+        }
+
+        switch(field.a){
+            case 'repeat':
+                this.move(this.turnRoll)
+                break;
+            case 'skip':       
+                this.flag = 'skip'
+                break;
+            case 'roll': 
+                this.do_turn();
+                break;
+            case 'stuck':
+                this.flag = 'stuck'
+                this.isLast() ;
+                break;
+            case 'goto37':
+                this.goToPlace(37) 
+                break;
+            case 'goto12'    :
+                this.goToPlace(12) 
+                break;    
+            case 'goto0':
+                this.goToPlace(0); 
+                break;
+            case 'win':
+                this.win();  
+                break;                                     
+            default:
+                console.log(this.session.board[this.place].a)
+        }
+        return true;
+    }
+
 }
 
 class game {
 
     constructor(players, dice){
+
+        this.players = players || 2;
         this.geese = [];
         this.winner = null;
         this.colors = ['blue', 'red', 'yellow', 'green', 'white', 'black'];
-        this.board = setup_board();
+        this.board = this.setup_board();
         this.dice = dice || 1;
-        for (let i = 0; i < players;  i++) {
-                geese.push(new goose(this.colors[i], this))
+        this.turn = 0;
+        for (let i = 0; i < this.players;  i++) {
+                this.geese.push(new goose(this.colors[i], this))
         }
 
     }
     
     play(){
         while (!this.winner) {
-            geese.forEach(goose => {
-                goose.start_turn();
-                if (goose.flag == 'win') {
-                    this.winner = goose.color;
+            ++this.turn;
+            this.geese.forEach(g => {
+                g.start_turn(this.turn);
+                if (g.flag == 'win') {
+                    this.winner = g.color;
                 }            
             });
+            if(this.turn > 100){
+                break;
+            }
         }
+        console.log(`the winner is ${this.winner}`)
     }
 
     setup_board(){
-        const board = [];
-        for(i=0; i<=63; i++){
+        const board = [{a:'', d: ''}];
+        for(let i=1; i<63; i++){
             if (i % 9 == 0 || ( i+4 ) % 9 == 0 ){
-                board.places.push('repeat')
+                board.push({a:'repeat', f: 'repeatSteps', p: null, d: 'gets to move again.'})
                 continue;
             }
             switch(i){
                 case 6: 
-                    board.places.push('goto12')
+                    board.push({a:'goto12', f: 'gotoPlace', p: 12, d: 'hops on the bridge'})
                     break;
                 case 19: 
-                    board.places.push('skip')
+                    board.push({a:'skip', f: 'skipTurn', p: null, d: 'is way too comfy in the tavern'})
                     break; 
                 case 26:
                 case 53:    
-                    board.places.push('roll') 
+                    board.push({a:'roll', f: 'doTurn', p: null, d: 'gets to roll again'}) 
                     break;              
                 case 31:
-                case 52: 
-                    board.places.push('stuck')
-                    break;
+                    board.push({a:'stuck', f: 'getStuck', p: null, d: 'falls into the Well'})
+                    break;                    
                 case 42:
-                    board.places.push('goto37') 
-                    break;     
+                    board.push({a:'goto37', f: 'gotoPlace', p: 37, d: 'gets lost in The Maze'}) 
+                    break; 
+                case 52: 
+                    board.push({a:'stuck', f: 'getStuck', p: null, d: 'lands in prison'})
+                    break;                        
                 case 58:
-                    board.places.push('goto0')    
-                    break;
-                case 63:
-                    board.places.push('win')  
-                    break;    
+                    board.push({a:'goto0', f: 'gotoPlace', p: 0, d: 'dies... and is reborn.'})    
+                    break; 
                 default:
-                    board.places.push('')
+                    board.push({a:'', f: '', p: null, d: ''})
                     break;
             }
         }
+        board.push({a:'win', f: 'win', p: null, d: ''} );
         return board;
     }
 
@@ -236,8 +264,8 @@ const board = {
 }
 
 
-const pointless_game_of_goose = new game(4);
-const winner = pointless_game_of_goose.play();
+//const pointless_game_of_goose = new game(4);
+//const winner = pointless_game_of_goose.play();
 
 
 
