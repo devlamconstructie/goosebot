@@ -1,6 +1,13 @@
+body { 
+    background-color: #f8f8f8; 
+    font-size: 14px; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 #gameview{
     width: 100%;
     min-height: 100vw;
+   
 }
 
 #boardwrapper{
@@ -23,15 +30,59 @@
 
 .field:nth-child(1){background-color: greenyellow}
 .goose{background-color:cyan ;}
-.bridge{}
-.inn{}
-.dice{}
-.well{}
-.maze{}
-.prison{}
-.death{}
+.bridge{background-color: brown}
+.inn{background-color: darkred}
+.dice{background-color: darkgreen}
+.well{background-color: darkblue; color: white}
+.maze{background-color: purple}
+.prison{background-color: grey}
+.death{background-color: black; color: lightgrey; }
 
 .field:nth-child(64){
     grid-column: 12/14;
     background-color:goldenrod;
 }
+
+.eventlog{
+    font-family: 'SegoeUI', 'Helvetica', 'Neue Haas', sans-serif, Arial ;
+    padding: 0.75em;
+    border-radius: 0.25em;
+    box-shadow: 2px 2px 2px 0px #ccc;
+    display: flex;
+    gap: 0.5em; 
+    background-color: #fff;
+}
+
+.eventlog::before{
+    content: '';
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    box-shadow: 1px 1px 2px 0 #ccc;
+}
+
+.eventlog_blue::before{
+    background-color: blue;
+}
+
+.eventlog_red::before{
+    background-color:  red;
+}
+
+.eventlog_green::before{
+    background-color: green;
+}
+
+.eventlog_yellow::before{
+    background-color: yellow;
+}
+
+.eventlog_white::before{
+    background-color:  white;
+}
+
+.eventlog_black::before{
+    background-color:  black;
+}
+
+
