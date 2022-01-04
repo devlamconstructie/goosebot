@@ -1,0 +1,37 @@
+#gameview{
+    width: 100%;
+    min-height: 100vw;
+}
+
+#boardwrapper{
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(13, 1fr);
+}
+
+.field {
+    border: 1px solid grey;
+    font-family: 'Times New Roman', Times, serif;
+    font-style: italic;
+    font-size: 40px;
+    line-height: 50px;
+    padding: 4px;
+    text-align: center;
+    vertical-align: center;
+    background-color: khaki;
+}
+
+.field:nth-child(1){background-color: greenyellow}
+.goose{background-color:cyan ;}
+.bridge{}
+.inn{}
+.dice{}
+.well{}
+.maze{}
+.prison{}
+.death{}
+
+.field:nth-child(64){
+    grid-column: 12/14;
+    background-color:goldenrod;
+}
