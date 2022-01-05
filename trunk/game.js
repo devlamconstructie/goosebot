@@ -27,21 +27,23 @@ Array.prototype.equals = function (array) {
 }
 // Hide method from for-in loops
 Object.defineProperty(Array.prototype, "equals", {enumerable: false});
-
-
-const main = document.querySelector('main')
-const btn = document.getElementById('btn_gamestart')
-const input = document.getElementById('input_geese')
-btn.addEventListener('click', () => { 
-    let g = new game(input.value);
-    g.play();
+var btn;
+document.addEventListener('DOMContentLoaded', ()=>{
+    console.log('load event happened')
+    const main = document.querySelector('main')
+    btn = document.getElementById('btn_gamestart')
+    btn.addEventListener('click', () => { 
+        
+        const input = document.getElementById('input_geese')
+        gg(input.value);
+    })
 })
-
 
 function gg(geese){
     const g = new game(geese)
     g.play();
 }
+
 class goose{
     constructor(color, session){
         this.color = color;
@@ -53,22 +55,30 @@ class goose{
     }
 
     start_turn(turn){
+        
+        if(this.session.winner != null )
+            return;
+
         this.turns = turn;
+        
         if (this.hasFlag()) {
             console.log(`Turn ${this.turns}: ${this.color} begins turn on place ${this.place} and with flag '${this.flag}'`)
         } else {
             console.log(`Turn ${this.turns}: ${this.color} begins turn on place ${this.place}`)
         }
        
+        flagswitch:
         switch (this.flag) {
             case 'skip':
                 this.flag = '';
                 break;
-            case 'stuck':
-                if( ! this.isLast()){
-                    // 
-                } else {
-                    //same as skip
+            case 'stuck':       
+                if( this.isOvertaken() ){
+                    this.flag = '';
+                    this.doTurn();
+                    break flagswitch;
+                }
+                if ( this.isLast() ){
                     this.flag = '';
                 }
                 break;
@@ -82,6 +92,10 @@ class goose{
         return this.flag != '' ; 
     }
 
+    extraTurn(){
+        this.doTurn();
+    }
+
     doTurn(){
         this.turnRoll = this.roll();
         console.log(`${this.color} rolls a ${this.turnRoll}`)
@@ -91,8 +105,10 @@ class goose{
 
     endTurn(){
         if (this.hasFlag()) {
+            this.session.view.logEvents(this.color, `${this.color} threw a ${this.turnRoll} and ends turn on place ${this.place} and ${this.session.board[this.place].d}`);
             console.log(`Turn ${this.turns}: ${this.color} ends turn on place ${this.place} and ${this.session.board[this.place].d}`)
         } else {
+            this.session.view.logEvents(this.color,  `${this.color} threw a ${this.turnRoll} and ends turn on place ${this.place}`);
             console.log(`Turn ${this.turns}: ${this.color} ends turn on place ${this.place}`)
         }
 
@@ -113,6 +129,7 @@ class goose{
     }
 
     repeatSteps(){
+        this.session.view.logEvents(this.color, `${this.color} landed on a goose on place ${this.place} and gets to move ${this.turnRoll} steps further.`);
         this.move(this.turnRoll);
     }
 
@@ -125,6 +142,7 @@ class goose{
     }
 
     goToPlace(p){
+        this.session.view.logEvents(this.color, `Turn ${this.turns}: ${this.color} landed on place ${this.place} and ${this.session.board[this.place].d}`);
         this.place = p;
         this.evaluateSelf(this.place);    
     }
@@ -143,13 +161,18 @@ class goose{
             if (bird.place < this.place){
                 this.stragglers.push(bird);
             };
-            if(this.stragglers.length == 0 ){
-                this.flag = 'skip'
-                return true;
-            }
-            console.log(`${this.color} has ${this.stragglers.length} stragglers behind it`);
-            return false;    
         })
+        if(this.stragglers.length == 0 ){
+            this.session.view.logEvents(this.color, `${this.color} is lucky; there are no stragglers so they only have to skip a turn.`);
+            this.flag = 'skip'
+            return true;
+        }
+        let eventmsg = `${this.color} is stuck and has ${this.stragglers.length} stragglers behind it:`;
+        this.stragglers.forEach(fowl => eventmsg += fowl.color)
+        this.session.view.logEvents(this.color, eventmsg );
+        console.log(`${this.color} has ${this.stragglers.length} stragglers behind it`);
+        return false;    
+
     }
     
     isOvertaken(){
@@ -164,14 +187,16 @@ class goose{
         }
         lastTurnStragglers = lastTurnStragglers.sort();
         let samestragglers = lastTurnStragglers.equals(this.stragglers.sort());
-        if(!samestragglers)
+        if(!samestragglers){
+            this.session.view.logEvents(this.color, `${this.color} was rescued by a passerby and can now move again.`);
             return true;
-
+        }
         return false;    
     }
    
     win(){
         this.flag = 'win';
+        this.session.winner = this.color;
     }
 
     checkIsSpecial(p){
@@ -199,6 +224,10 @@ class game {
         this.board = this.setup_board();
         this.dice = dice || 1;
         this.turn = 0;
+
+
+        this.view = new display(this, '#gameview')
+
         for (let i = 0; i < this.players;  i++) {
                 this.geese.push(new goose(this.colors[i], this))
         }
@@ -206,50 +235,52 @@ class game {
     }
     
     play(){
-        while (!this.winner) {
+         while (!this.winner) {
             ++this.turn;
             this.geese.forEach(g => {
                 g.start_turn(this.turn);
                 if (g.flag == 'win') {
                     this.winner = g.color;
+                    this.view.logEvents(this.winner, `the winner is ${this.winner}`);
+                   
                 }            
             });
             if(this.turn > 100){
                 break;
             }
         }
-        console.log(`the winner is ${this.winner}`)
+        
     }
 
     setup_board(){
         const board = [{a:'', d: ''}];
         for(let i=1; i<63; i++){
             if (i % 9 == 0 || ( i+4 ) % 9 == 0 ){
-                board.push({a:'repeat', f: 'repeatSteps', p: null, d: 'gets to move again.'})
+                board.push({a:'goose', f: 'repeatSteps', p: null, d: 'gets to move again.'})
                 continue;
             }
             switch(i){
                 case 6: 
-                    board.push({a:'goto12', f: 'goToPlace', p: 12, d: 'hops on the bridge'})
+                    board.push({a:'bridge', f: 'goToPlace', p: 12, d: 'hops on the bridge'})
                     break;
                 case 19: 
-                    board.push({a:'skip', f: 'skipTurn', p: null, d: 'is way too comfy in the tavern'})
+                    board.push({a:'inn', f: 'skipTurn', p: null, d: 'is way too comfy in the tavern and skips a turn'})
                     break; 
                 case 26:
                 case 53:    
-                    board.push({a:'roll', f: 'doTurn', p: null, d: 'gets to roll again'}) 
+                    board.push({a:'dice', f: 'extraTurn', p: null, d: 'gets to roll again'}) 
                     break;              
                 case 31:
-                    board.push({a:'stuck', f: 'getStuck', p: null, d: 'falls into the Well'})
+                    board.push({a:'well', f: 'getStuck', p: null, d: 'falls into the Well'})
                     break;                    
                 case 42:
-                    board.push({a:'goto37', f: 'goToPlace', p: 37, d: 'gets lost in The Maze'}) 
+                    board.push({a:'maze', f: 'goToPlace', p: 37, d: 'gets lost in The Maze'}) 
                     break; 
                 case 52: 
-                    board.push({a:'stuck', f: 'getStuck', p: null, d: 'lands in prison'})
+                    board.push({a:'prison', f: 'getStuck', p: null, d: 'lands in prison'})
                     break;                        
                 case 58:
-                    board.push({a:'goto0', f: 'goToPlace', p: 0, d: 'dies... and is reborn.'})    
+                    board.push({a:'death', f: 'goToPlace', p: 0, d: 'dies... and is reborn.'})    
                     break; 
                 default:
                     board.push({a:'', f: '', p: null, d: ''})
@@ -261,65 +292,50 @@ class game {
     }
 
 }
-//data
-const board = {
+
+class display{
+    constructor(game, element){
+        this.game = game;
+
+        if(typeof element == 'string'){
+            element = document.querySelector(element)
+        }
+
+        if (!element)
+            console.log('no valid DOM element or Element Selector provided');
+        else    
+            this.viewer = element;
+
+        this.viewer.innerHTML = '';    
+        this.displayBoard(this.game, this.viewer)
+    }
+
+    displayBoard(g, v){
+        let d = document
+        let ce = e => d.createElement(e);
+        let b = g.board
+        const boardwrapper = ce('div')
+        boardwrapper.setAttribute('id', 'boardwrapper')
+        b.forEach((fld, idx ) => {
+            let div = ce('div');
+            div.textContent = idx;
+            div.setAttribute('id', 'fld_' + idx)
+            div.setAttribute('data-special', fld.a)
+            div.classList.add('field')
+            if (fld.a)
+                div.classList.add(fld.a)
+
+            boardwrapper.append(div)
+        })
+        v.append(boardwrapper);
+    }
+
+    logEvents(color, event){
+        let p = document.createElement('p');
+        p.classList.add(`eventlog_${color}`)
+        p.classList.add('eventlog')
+        p.innerText = event
+        this.viewer.append(p)
+    }
 
 }
-
-
-//const pointless_game_of_goose = new game(4);
-//const winner = pointless_game_of_goose.play();
-
-
-
-
-
-/*
-make 4 geese
-each has color, place, flag
-method check place 
-method isstuck
-
-make game
-
-has board,
-has methods
-roll
-movetoplace
-repeatsteps
-throwagain
-skipturn
-getstuck
-reverse
-win
-
-goose starts at 0
-check flag.
-if flag reverse, unset flag
-check flag stuck
-if flag stuck check lagging players.  if any remembered goose now has place > p.place set unstuck, forget lagging geese and throw else re-check lagging geese.
-if flag skipturn unset flag 
-else
-throws dice
-add dice value to place
-if place is special perform special action
-goose: 
-if not flag reverse add dice value to place again else subtract diece val from place.
-bridge/thorns/death: moveto(12/3x/0)
-dice:throw again/reset turn
-inn: skipturn
-(set flag skip turn.)
-jail/well: wait for later player to pass or skip turn
-(if no goose exists with lower value place, set flag skipturn. else set flag stuck + remember any geese behind this goose.
-overshoot 63: reverse dir.
-if place + dieval > 63, newplace = 63+(63-place+dieval) set flag reverse.
-
-
-if place = 63 win
-else pass turn to next player.
-
-
-
-
- */
-
