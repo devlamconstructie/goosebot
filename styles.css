@@ -9,10 +9,13 @@ body {
     border-radius: 0.2em;
     background-color: steelblue;
     color: white;
+    width: -moz-fit-content;
+    width: fit-content;
     font-weight: 700;
     cursor: pointer;
     display: block;
     text-decoration: none;
+    text-align: center;
 }
 
 .button:hover{
