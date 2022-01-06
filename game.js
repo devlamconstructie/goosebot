@@ -225,7 +225,6 @@ class game {
         this.dice = dice || 1;
         this.turn = 0;
 
-
         this.view = new display(this, '#gameview')
 
         for (let i = 0; i < this.players;  i++) {
