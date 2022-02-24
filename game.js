@@ -1,32 +1,3 @@
-// Warn if overriding existing method
-if(Array.prototype.equals)
-    console.warn("Overriding existing Array.prototype.equals. Possible causes: New API defines the method, there's a framework conflict or you've got double inclusions in your code.");
-// attach the .equals method to Array's prototype to call it on any array
-Array.prototype.equals = function (array) {
-    // if the other array is a falsy value, return
-    if (!array)
-        return false;
-
-    // compare lengths - can save a lot of time 
-    if (this.length != array.length)
-        return false;
-
-    for (var i = 0, l=this.length; i < l; i++) {
-        // Check if we have nested arrays
-        if (this[i] instanceof Array && array[i] instanceof Array) {
-            // recurse into the nested arrays
-            if (!this[i].equals(array[i]))
-                return false;       
-        }           
-        else if (this[i] != array[i]) { 
-            // Warning - two different object instances will never be equal: {x:20} != {x:20}
-            return false;   
-        }           
-    }       
-    return true;
-}
-// Hide method from for-in loops
-Object.defineProperty(Array.prototype, "equals", {enumerable: false});
 var btn;
 document.addEventListener('DOMContentLoaded', ()=>{
     console.log('load event happened')
@@ -176,17 +147,14 @@ class goose{
     }
     
     isOvertaken(){
-        //remember kids: array names are references so if 
-        // we want to actually retain a version of the array 
-        // we need to create a new reference. 
-        let lastTurnStragglers = this.stragglers.slice();
+        let lastTurnStragglers = [...this.stragglers];
         let last = this.isLast();
         if(last){
             this.flag = '';
             return true;
         }
         lastTurnStragglers = lastTurnStragglers.sort();
-        let samestragglers = lastTurnStragglers.equals(this.stragglers.sort());
+        let samestragglers = this.compareArrays(lastTurnStragglers, this.stragglers.sort());
         if(!samestragglers){
             this.session.view.logEvents(this.color, `${this.color} was rescued by a passerby and can now move again.`);
             return true;
@@ -209,6 +177,33 @@ class goose{
 
         return action;
         
+    }
+    
+    compareArrays(A, B){
+        if (!A || ! B || ! Array.isArray(A) || !Array.isArray(B) ) {
+            return false;
+        }
+    
+        if (A.length !== B.length){
+            return false;
+        }
+    
+        for(let i = 0; i < A.length; i++){
+            // Check if we have nested arrays
+            if ( A[i] instanceof Array && B[i] instanceof Array) {
+                // recurse into the nested arrays
+                if (! compareArrays(A[i], B[i]) ){
+                    return false;       
+                }  
+            }
+    
+            if (A[i] !== B[i]) { 
+                // Warning - two different object instances will never be equal: {x:20} != {x:20}
+                return false;   
+            }   
+        }
+        return true;
+    
     }
 
 }
